@@ -55,3 +55,6 @@ target/
 
 # Pycharm
 .idea/
+
+# Project Directories
+DistBucket/
