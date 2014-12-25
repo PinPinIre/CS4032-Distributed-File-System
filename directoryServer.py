@@ -5,13 +5,15 @@
 import socket
 import re
 import sys
+import os
+import hashlib
 
 from server import TCPServer
 
 
 class DirectoryServer(TCPServer):
     GET_REGEX = "GET_SERVER: \nFILENAME: [a-zA-Z0-9_./]*\n\n"
-    GET_RESPONSE = "SERVER: %s\nFILENAME:%s\n\n"
+    GET_RESPONSE = "SERVER: %s\nFILENAME: %s\n\n"
 
     def __init__(self, port_use=None):
         TCPServer.__init__(self, port_use, self.handler)
@@ -26,14 +28,22 @@ class DirectoryServer(TCPServer):
     def get_server(self, con, addr, text):
         # Handler for file upload requests
         request = text.splitlines()
-        filename = request[1].split()[1]
+        full_path = request[1].split()[1]
 
-        # TODO GET SERVER MAPPING AND HASH FILENAME
-        server = filename[::-1]
+        # TODO Check that the path exists, maybe sqlite db? 
+        path, file = os.path.split(full_path)
+        name, ext = os.path.splitext(file)
+        filename = hashlib.sha256(full_path).hexdigest() + ext
+        host = self.find_host(path)
 
-        return_string = self.GET_RESPONSE % (self.HOST, server)
+        return_string = self.GET_RESPONSE % (host, filename)
+        print return_string
         con.sendall(return_string)
         return
+
+    def find_host(self, path):
+        # TODO Find a file server based on the files path
+        return self.HOST
 
 
 def main():
