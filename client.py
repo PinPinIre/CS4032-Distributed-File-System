@@ -59,7 +59,7 @@ class TCPClient:
         # Do nothing if the string is empty or socket doesn't exist
         if len(string) > 0:
             # Create socket if it doesn't exist
-            return_data = self.send_request(string)
+            return_data = self.send_request(string + "\n\n")
         return return_data
 
     def upload_file(self, query):

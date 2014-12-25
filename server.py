@@ -6,34 +6,25 @@ import socket
 import threading
 import Queue
 import os
-import httplib
 import re
 import sys
-import random
-import hashlib
-import base64
 
 
-class TCPServer:
+class TCPServer(object):
     PORT = 8000
     HOST = '0.0.0.0'
     LENGTH = 4096
     MAX_THREAD = 2
     HELO_RESPONSE = "HELO %s\nIP:%s\nPort:%s\nStudentID:11347076\n\n"
-    UPLOAD_REGEX = "UPLOAD: [0-9]*\nFILENAME: [a-zA-Z0-9_.]*\nDATA: .*\n\n"
-    DOWNLOAD_REGEX = "DOWNLOAD: [0-9]*\nFILENAME: [a-zA-Z0-9_.]*\n\n"
+    DEFAULT_RESPONSE = "ERROR: INVALID MESSAGE\n\n"
     HELO_REGEX = "HELO .*"
-    SERVER_ROOT = os.getcwd()
-    BUCKET_NAME = "DistBucket"
-    BUCKET_LOCATION = os.path.join(SERVER_ROOT, BUCKET_NAME)
-    LENGTH = 4096
 
-    def __init__(self, port_use=None):
+    def __init__(self, port_use=None, handler=None):
         if not port_use:
             port_use = self.PORT
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.bind((self.HOST, port_use))
-
+        self.handler = handler if handler else self.default_handler
         # Create a queue of tasks with ma
         self.threadQueue = Queue.Queue(maxsize=self.MAX_THREAD)
 
@@ -42,7 +33,9 @@ class TCPServer:
             thread = ThreadHandler(self.threadQueue, self.LENGTH, self)
             thread.setDaemon(True)
             thread.start()
-        self.listen()
+
+    def default_handler(self, message, con, addr):
+        return False
 
     def listen(self):
         self.sock.listen(5)
@@ -71,37 +64,12 @@ class TCPServer:
         return
 
     def default(self, con, addr, text):
+        return_string = self.DEFAULT_RESPONSE
+        con.sendall(return_string)
         # Default handler for everything else
         print "Default"
         return
 
-    def upload(self, con, addr, text):
-        # Handler for file upload requests
-        request = text.splitlines()
-        filename = request[1].split()[1]
-        data = request[2].split()[1]
-        data = base64.b64decode(data)
-
-        path = os.path.join(self.BUCKET_LOCATION, filename)
-        file_handle = open(path, "w+")
-        file_handle.write(data)
-
-        return_string = self.HELO_RESPONSE % ("ffafssf", addr[0], addr[1])
-        con.sendall(return_string)
-        return
-
-    def download(self, con, addr, text):
-        # Handler for file download requests
-        request = text.splitlines()
-        filename = request[1].split()[1]
-
-        path = os.path.join(self.BUCKET_LOCATION, filename)
-        file_handle = open(path, "r")
-        data = file_handle.read()
-        return_string = base64.b64encode(data) + "\n\n"
-
-        con.sendall(return_string)
-        return
 
 class ThreadHandler(threading.Thread):
     def __init__(self, thread_queue, buffer_length, server):
@@ -109,6 +77,7 @@ class ThreadHandler(threading.Thread):
         self.queue = thread_queue
         self.buffer_length = buffer_length
         self.server = server
+        self.messageHandler = server.handler
 
     def run(self):
         # Thread loops and waits for connections to be added to the queue
@@ -129,15 +98,13 @@ class ThreadHandler(threading.Thread):
         # If valid http request with message body
         if len(message) > 0:
             print message
-            if message == "KILL_SERVICE":
+            if message == "KILL_SERVICE\n\n":
                 print "Killing service"
-                self.kill_serv(con)
+                self.server.kill_serv(con)
             elif re.match(self.server.HELO_REGEX, message):
-                self.server.helo(con, addr, message[5:])
-            elif re.match(self.server.UPLOAD_REGEX, message):
-                self.server.upload(con, addr, message)
-            elif re.match(self.server.DOWNLOAD_REGEX, message):
-                self.server.download(con, addr, message)
+                self.server.helo(con, addr, message)
+            elif self.messageHandler(message, con, addr):
+                pass
             else:
                 self.server.default(con, addr, message)
         return
@@ -150,6 +117,7 @@ def main():
             server = TCPServer(port)
         else:
             server = TCPServer()
+        server.listen()
     except socket.error, msg:
         print "Unable to create socket connection: " + str(msg)
         con = None
