@@ -16,8 +16,10 @@ class TCPClient:
     HOST = "0.0.0.0"
     UPLOAD_HEADER = "UPLOAD: %d\nFILENAME: %s\nDATA: %s\n\n"
     DOWNLOAD_HEADER = "DOWNLOAD: %d\nFILENAME: %s\n\n"
+    DIRECTORY_HEADER = "GET_SERVER: \nFILENAME: %s\n\n"
     UPLOAD_REGEX = "upload [a-zA-Z0-9_]*.[a-zA-Z0-9_]*"
     DOWNLOAD_REGEX = "download [a-zA-Z0-9_]*.[a-zA-Z0-9_]*"
+    DIRECTORY_REGEX = "dir [a-zA-Z0-9_/.]*"
     REQUEST = "%s"
     LENGTH = 4096
     CLIENT_ROOT = os.getcwd()
@@ -89,6 +91,14 @@ class TCPClient:
         file_handle.write(data)
         return request_data
 
+    def get_directory(self, query):
+        """Send a request to the server to upload a file"""
+        paramaters = query.split()
+        filename = paramaters[1]
+
+        request = self.DIRECTORY_HEADER % filename
+        return self.send_request(request)
+
 
 class ThreadHandler(threading.Thread):
     def __init__(self, thread_queue, buffer_length, server):
@@ -139,6 +149,9 @@ def main():
             #print data
         elif re.match(TCPClient.DOWNLOAD_REGEX, user_input.lower()):
             data = con.download_file(user_input)
+            #print data
+        elif re.match(TCPClient.DIRECTORY_REGEX, user_input.lower()):
+            data = con.get_directory(user_input)
             #print data
         else:
             data = con.raw_request(user_input)

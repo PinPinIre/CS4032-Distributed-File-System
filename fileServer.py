@@ -1,4 +1,3 @@
-__author__ = 'cathalgeoghegan'
 # Lab2Server.py
 # Project CS4032
 # Cathal Geoghegan #11347076
