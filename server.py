@@ -11,6 +11,7 @@ import re
 import sys
 import random
 import hashlib
+import base64
 
 
 class TCPServer:
@@ -18,16 +19,16 @@ class TCPServer:
     HOST = '0.0.0.0'
     LENGTH = 4096
     MAX_THREAD = 2
-    JOIN_REGEX = "JOIN_CHATROOM: [a-zA-Z0-9_]*\nCLIENT_IP: 0\nPORT: 0\nCLIENT_NAME: [a-zA-Z0-9_]*"
-    LEAVE_REGEX = "LEAVE_CHATROOM: [0-9]*\nJOIN_ID: [0-9]*\nCLIENT_NAME: [a-zA-Z0-9_]*"
-    HELO_REGEX = "HELO .*"
-    MESSAGE_REGEX = "CHAT: [0-9]*\nJOIN_ID: [0-9]*\nCLIENT_NAME: [a-zA-Z0-9_]*\nMESSAGE: [a-zA-Z0-9_]*'\n\n']"
-    JOIN_REQUEST_RESPONSE = "JOINED_CHATROOM: %s\nSERVER_IP: %s\nPORT: %s\nROOM_REF: %d\nJOIN_ID: %d\n\n"
-    LEAVE_REQUEST_RESPONSE = "LEFT_CHATROOM: %s\nJOIN_ID: %s\n\n"
     HELO_RESPONSE = "HELO %s\nIP:%s\nPort:%s\nStudentID:11347076\n\n"
+    UPLOAD_REGEX = "UPLOAD: [0-9]*\nFILENAME: [a-zA-Z0-9_.]*\nDATA: .*\n\n"
+    DOWNLOAD_REGEX = "DOWNLOAD: [0-9]*\nFILENAME: [a-zA-Z0-9_.]*\n\n"
+    HELO_REGEX = "HELO .*"
+    SERVER_ROOT = os.getcwd()
+    BUCKET_NAME = "DistBucket"
+    BUCKET_LOCATION = os.path.join(SERVER_ROOT, BUCKET_NAME)
+    LENGTH = 4096
 
     def __init__(self, port_use=None):
-        self.rooms = dict()
         if not port_use:
             port_use = self.PORT
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -74,33 +75,33 @@ class TCPServer:
         print "Default"
         return
 
-    def join(self, con, addr, text):
+    def upload(self, con, addr, text):
+        # Handler for file upload requests
         request = text.splitlines()
-        room_name = request[0].split()[1]
-        client_name = request[3].split()[1]
+        filename = request[1].split()[1]
+        data = request[2].split()[1]
+        data = base64.b64decode(data)
 
-        hash_room_name = int(hashlib.md5(room_name).hexdigest(), 16)
-        hash_client_name = int(hashlib.md5(client_name).hexdigest(), 16)
+        path = os.path.join(self.BUCKET_LOCATION, filename)
+        file_handle = open(path, "w+")
+        file_handle.write(data)
 
-        if hash_room_name not in self.rooms:
-            self.rooms[hash_room_name] = dict()
-        if hash_client_name not in self.rooms[hash_room_name].keys():
-            self.rooms[hash_room_name][hash_client_name] = con
-        return_string = self.JOIN_REQUEST_RESPONSE % (room_name, "SERVER IP", "PORT", hash_room_name, hash_client_name)
+        return_string = self.HELO_RESPONSE % ("ffafssf", addr[0], addr[1])
         con.sendall(return_string)
         return
 
-    def leave(self, con, addr, text):
+    def download(self, con, addr, text):
+        # Handler for file download requests
         request = text.splitlines()
-        room_id = request[0].split()[1]
-        client_id = request[1].split()[1]
-        client_name = request[2].split()[1]
-        """TODO: Remove the client from the room dict"""
-        return_string = self.LEAVE_REQUEST_RESPONSE % (room_id, client_id)
-        con.sendall(return_string)
-        print client_name + " LEAVING"
-        return
+        filename = request[1].split()[1]
 
+        path = os.path.join(self.BUCKET_LOCATION, filename)
+        file_handle = open(path, "r")
+        data = file_handle.read()
+        return_string = base64.b64encode(data) + "\n\n"
+
+        con.sendall(return_string)
+        return
 
 class ThreadHandler(threading.Thread):
     def __init__(self, thread_queue, buffer_length, server):
@@ -119,25 +120,24 @@ class ThreadHandler(threading.Thread):
     def handler(self, (con, addr)):
         message = ""
         # Loop and receive data
-        while True:
-            data = con.recv(1024)
-            message += data
-            if len(data) < self.buffer_length:
+        while "\n\n" not in message:
+            data = con.recv(TCPServer.LENGTH)
+            if len(data) == 0:
                 break
+            message += data
 
         # If valid http request with message body
         if len(message) > 0:
+            print message
             if message == "KILL_SERVICE":
                 print "Killing service"
                 self.kill_serv(con)
             elif re.match(self.server.HELO_REGEX, message):
                 self.server.helo(con, addr, message[5:])
-            elif re.match(self.server.JOIN_REGEX, message):
-                self.server.join(con, addr, message)
-            elif re.match(self.server.LEAVE_REGEX, message):
-                self.server.leave(con, addr, message)
-            elif re.match(self.server.MESSAGE_REGEX, message):
-                self.server.leave(con, addr, message)
+            elif re.match(self.server.UPLOAD_REGEX, message):
+                self.server.upload(con, addr, message)
+            elif re.match(self.server.DOWNLOAD_REGEX, message):
+                self.server.download(con, addr, message)
             else:
                 self.server.default(con, addr, message)
         return

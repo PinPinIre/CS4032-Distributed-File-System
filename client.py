@@ -4,20 +4,25 @@
 
 import socket
 import sys
+import os
 import re
 import threading
 import Queue
+import base64
 
 
 class TCPClient:
     PORT = 8000
     HOST = "0.0.0.0"
-    JOIN_HEADER = "JOIN_CHATROOM: %s\nCLIENT_IP: 0\nPORT: 0\nCLIENT_NAME: %s"
-    LEAVE_HEADER = "LEAVE_CHATROOM: %s\nJOIN_ID: %s\nCLIENT_NAME: %s"
-    JOIN_REGEX = "join [a-zA-Z0-9_]* [a-zA-Z0-9_]*"
-    LEAVE_REGEX = "leave [a-zA-Z0-9_]* [a-zA-Z0-9_]* [a-zA-Z0-9_]*"
+    UPLOAD_HEADER = "UPLOAD: %d\nFILENAME: %s\nDATA: %s\n\n"
+    DOWNLOAD_HEADER = "DOWNLOAD: %d\nFILENAME: %s\n\n"
+    UPLOAD_REGEX = "upload [a-zA-Z0-9_]*.[a-zA-Z0-9_]*"
+    DOWNLOAD_REGEX = "download [a-zA-Z0-9_]*.[a-zA-Z0-9_]*"
     REQUEST = "%s"
     LENGTH = 4096
+    CLIENT_ROOT = os.getcwd()
+    BUCKET_NAME = "DistBucketClient"
+    BUCKET_LOCATION = os.path.join(CLIENT_ROOT, BUCKET_NAME)
 
     def __init__(self, port_use=None):
         if not port_use:
@@ -57,19 +62,32 @@ class TCPClient:
             return_data = self.send_request(string)
         return return_data
 
-    def join_room(self, query):
-        """Send a request to the server to join a chatroom"""
+    def upload_file(self, query):
+        """Send a request to the server to upload a file"""
         paramaters = query.split()
-        request = self.JOIN_HEADER % (paramaters[1], paramaters[2])
-        print request
+        filename = paramaters[1]
+        path = os.path.join(self.BUCKET_LOCATION, filename)
+
+        file_handle = open(path, "rb")
+        data = file_handle.read()
+        data = base64.b64encode(data)
+
+        request = self.UPLOAD_HEADER % (0, filename, data)
         return self.send_request(request)
 
-    def leave_room(self, query):
-        """Send a request to the server to join a chatroom"""
+    def download_file(self, query):
+        """Send a request to the server to download a file"""
         paramaters = query.split()
-        request = self.LEAVE_HEADER % (paramaters[1], paramaters[2], paramaters[3])
-        print request
-        return self.send_request(request)
+        filename = paramaters[1]
+        path = os.path.join(self.BUCKET_LOCATION, filename)
+
+        request = self.DOWNLOAD_HEADER % (0, paramaters[1])
+        request_data = self.send_request(request).splitlines()[0]
+
+        data = base64.b64decode(request_data)
+        file_handle = open(path, "wb+")
+        file_handle.write(data)
+        return request_data
 
 
 class ThreadHandler(threading.Thread):
@@ -116,12 +134,12 @@ def main():
         user_input = raw_input("Enter a message to send or type exit:")
         if user_input.lower() == "exit":
             con = None
-        elif re.match(TCPClient.JOIN_REGEX, user_input.lower()):
-            data = con.join_room(user_input)
-            print data
-        elif re.match(TCPClient.LEAVE_REGEX, user_input.lower()):
-            data = con.leave_room(user_input)
-            print data
+        elif re.match(TCPClient.UPLOAD_REGEX, user_input.lower()):
+            data = con.upload_file(user_input)
+            #print data
+        elif re.match(TCPClient.DOWNLOAD_REGEX, user_input.lower()):
+            data = con.download_file(user_input)
+            #print data
         else:
             data = con.raw_request(user_input)
             print data
