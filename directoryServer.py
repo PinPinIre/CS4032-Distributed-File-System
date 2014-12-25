@@ -28,6 +28,7 @@ class DirectoryServer(TCPServer):
         request = text.splitlines()
         filename = request[1].split()[1]
 
+        # TODO GET SERVER MAPPING AND HASH FILENAME
         server = filename[::-1]
 
         return_string = self.GET_RESPONSE % (self.HOST, server)
