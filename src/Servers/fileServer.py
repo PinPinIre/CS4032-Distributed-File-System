@@ -15,7 +15,7 @@ class FileServer(TCPServer):
     UPLOAD_REGEX = "UPLOAD: [0-9]*\nFILENAME: [a-zA-Z0-9_.]*\nDATA: .*\n\n"
     DOWNLOAD_REGEX = "DOWNLOAD: [0-9]*\nFILENAME: [a-zA-Z0-9_.]*\n\n"
     SERVER_ROOT = os.getcwd()
-    BUCKET_NAME = "DistBucket"
+    BUCKET_NAME = "DirectoryServerFiles"
     BUCKET_LOCATION = os.path.join(SERVER_ROOT, BUCKET_NAME)
 
     def __init__(self, port_use=None):
