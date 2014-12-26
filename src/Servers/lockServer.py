@@ -5,6 +5,7 @@
 import socket
 import re
 import sys
+import sqlite3 as db
 
 from tcpServer import TCPServer
 
@@ -15,7 +16,7 @@ class LockServer(TCPServer):
 
     def __init__(self, port_use=None):
         TCPServer.__init__(self, port_use, self.handler)
-        # TODO Create the DB table for file locking if doesn't exist
+        self.create_table()
 
     def handler(self, message, con, addr):
         if re.match(self.LOCK_REGEX, message):
@@ -40,6 +41,12 @@ class LockServer(TCPServer):
         # TODO Check if file locked and if not, lock it
         # TODO connect to sqlite DB, lock table and create lock entry if free
         return 0
+
+    def create_table(cls):
+        con = db.connect('Database/locking.db')
+        with con:
+            cur = con.cursor()
+            cur.execute("CREATE TABLE IF NOT EXISTS Locks(Id INT PRIMARY KEY, Path TEXT, Time INT)")
 
 
 def main():
