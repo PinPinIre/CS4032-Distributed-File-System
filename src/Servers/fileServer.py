@@ -8,7 +8,7 @@ import re
 import sys
 import base64
 
-from server import TCPServer
+from tcpServer import TCPServer
 
 
 class FileServer(TCPServer):

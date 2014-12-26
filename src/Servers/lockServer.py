@@ -6,7 +6,7 @@ import socket
 import re
 import sys
 
-from server import TCPServer
+from tcpServer import TCPServer
 
 
 class LockServer(TCPServer):

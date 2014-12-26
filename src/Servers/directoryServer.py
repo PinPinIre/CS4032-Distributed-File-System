@@ -8,7 +8,7 @@ import sys
 import os
 import hashlib
 
-from server import TCPServer
+from tcpServer import TCPServer
 
 
 class DirectoryServer(TCPServer):
