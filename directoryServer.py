@@ -30,7 +30,7 @@ class DirectoryServer(TCPServer):
         request = text.splitlines()
         full_path = request[1].split()[1]
 
-        # TODO Check that the path exists, maybe sqlite db? 
+        # TODO Check that the path exists, maybe sqlite db?
         path, file = os.path.split(full_path)
         name, ext = os.path.splitext(file)
         filename = hashlib.sha256(full_path).hexdigest() + ext
