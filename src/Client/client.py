@@ -17,11 +17,11 @@ class TCPClient:
     UPLOAD_HEADER = "UPLOAD: %d\nFILENAME: %s\nDATA: %s\n\n"
     DOWNLOAD_HEADER = "DOWNLOAD: %d\nFILENAME: %s\n\n"
     DIRECTORY_HEADER = "GET_SERVER: \nFILENAME: %s\n\n"
-    LOCK_HEADER = "LOCK_FILE: \nFILENAME: %s\n\n"
+    LOCK_HEADER = "LOCK_FILE: %s\nFILENAME: %s\nTime: %d\n\n"
     UPLOAD_REGEX = "upload [a-zA-Z0-9_]*.[a-zA-Z0-9_]*"
     DOWNLOAD_REGEX = "download [a-zA-Z0-9_]*.[a-zA-Z0-9_]*"
     DIRECTORY_REGEX = "dir [a-zA-Z0-9_/.]*"
-    LOCK_REGEX = "lock [a-zA-Z0-9_/.]*"
+    LOCK_REGEX = "lock [a-zA-Z0-9_/.]* [0-9]*"
     REQUEST = "%s"
     LENGTH = 4096
     CLIENT_ROOT = os.getcwd()
@@ -105,8 +105,9 @@ class TCPClient:
         """Send a request to the server to upload a file"""
         paramaters = query.split()
         filename = paramaters[1]
-
-        request = self.LOCK_HEADER % filename
+        time = int(paramaters[2])
+        Lock = "True"
+        request = self.LOCK_HEADER % (Lock, filename, time)
         print request
         return self.send_request(request)
 

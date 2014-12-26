@@ -13,7 +13,7 @@ from tcpServer import TCPServer
 
 
 class LockServer(TCPServer):
-    LOCK_REGEX = "LOCK_FILE: \nFILENAME: [a-zA-Z0-9_./]*\n\n"
+    LOCK_REGEX = "LOCK_FILE: (True|False)\nFILENAME: [a-zA-Z0-9_./]*\nTime: [0-9]*\n\n"
     LOCK_RESPONSE = "LOCK_RESPONE: \nFILENAME: %s\nTIME: %d\n\n"
 
     def __init__(self, port_use=None):
@@ -31,8 +31,9 @@ class LockServer(TCPServer):
         # Handler for file locking requests
         request = text.splitlines()
         full_path = request[1].split()[1]
-
-        lock_time = self.lock_file(full_path, 5)
+        duration = int(request[2].split()[1])
+        print "Duration: " + str(duration)
+        lock_time = self.lock_file(full_path, duration)
 
         return_string = self.LOCK_RESPONSE % (full_path, lock_time)
         print return_string
