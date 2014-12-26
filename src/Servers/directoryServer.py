@@ -7,6 +7,7 @@ import re
 import sys
 import os
 import hashlib
+import sqlite3 as db
 
 from tcpServer import TCPServer
 
@@ -14,10 +15,12 @@ from tcpServer import TCPServer
 class DirectoryServer(TCPServer):
     GET_REGEX = "GET_SERVER: \nFILENAME: [a-zA-Z0-9_./]*\n\n"
     GET_RESPONSE = "SERVER: %s\nFILENAME: %s\n\n"
+    DATABASE = "Database/directories.db"
+    # TODO Add message to delete and create directories
 
     def __init__(self, port_use=None):
         TCPServer.__init__(self, port_use, self.handler)
-        # TODO Create the DB tables if they don't exist
+        self.create_table()
 
     def handler(self, message, con, addr):
         if re.match(self.GET_REGEX, message):
@@ -31,11 +34,15 @@ class DirectoryServer(TCPServer):
         request = text.splitlines()
         full_path = request[1].split()[1]
 
-        # TODO Check that the path exists, maybe sqlite db?
         path, file = os.path.split(full_path)
         name, ext = os.path.splitext(file)
         filename = hashlib.sha256(full_path).hexdigest() + ext
         host = self.find_host(path)
+
+        if not host:
+            print "Error: The directory doesn't exist"
+            # TODO Return an ERROR response
+            host = self.HOST
 
         return_string = self.GET_RESPONSE % (host, filename)
         print return_string
@@ -43,8 +50,44 @@ class DirectoryServer(TCPServer):
         return
 
     def find_host(self, path):
-        # TODO Find a file server based on the files path
-        return self.HOST
+        print "Filepath is " + path
+        return_host = False
+        con = db.connect(self.DATABASE)
+        with con:
+            cur = con.cursor()
+            cur.execute("SELECT Server FROM Directories WHERE Path = ?", (path,))
+            server = cur.fetchone()
+            if server:
+                return_host = server[0]
+        return return_host
+
+    def create_dir(self, path, host):
+        con = db.connect(self.DATABASE)
+        with con:
+            cur = con.cursor()
+            cur.execute("INSERT INTO Directories (Path, Server) VALUES (?, ?)", (path, host))
+        con.commit()
+        con.close()
+
+    def add_server(self, host):
+        # TODO Add server to the DB
+        return False
+
+    def remove_dir(self, path):
+        con = db.connect(self.DATABASE)
+        with con:
+            cur = con.cursor()
+            cur.execute("DELETE FROM Directories WHERE Path = ?", (path,))
+        con.commit()
+        con.close()
+
+    def create_table(self):
+        # TODO create a table for directories
+        con = db.connect(self.DATABASE)
+        with con:
+            cur = con.cursor()
+            cur.execute("CREATE TABLE IF NOT EXISTS Directories(Id INTEGER PRIMARY KEY, Path TEXT, Server TEXT)")
+            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS DIRS ON Directories(Path)")
 
 
 def main():
