@@ -5,7 +5,9 @@
 import socket
 import re
 import sys
+import time
 import sqlite3 as db
+
 
 from tcpServer import TCPServer
 
@@ -30,23 +32,37 @@ class LockServer(TCPServer):
         request = text.splitlines()
         full_path = request[1].split()[1]
 
-        lock_time = self.lock_file(full_path)
+        lock_time = self.lock_file(full_path, 100)
 
         return_string = self.LOCK_RESPONSE % (full_path, lock_time)
         print return_string
         con.sendall(return_string)
         return
 
-    def lock_file(self, path):
-        # TODO Check if file locked and if not, lock it
-        # TODO connect to sqlite DB, lock table and create lock entry if free
-        return 0
+    def lock_file(self, path, lock_period):
+        return_time = -1
+        con = db.connect('Database/locking.db')
+        # Exclusive r/w access to the db
+        con.isolation_level = 'EXCLUSIVE'
+        con.execute('BEGIN EXCLUSIVE')
+        current_time = int(time.time())
+        end_time = current_time + lock_period
+
+        cur = con.cursor()
+        cur.execute("SELECT count(*) FROM Locks WHERE Path = ? AND Time > ?", (path, current_time))
+        count = cur.fetchone()[0]
+        if count is 0:
+            cur.execute("INSERT INTO Locks (Path, Time) VALUES (?, ?)", (path, end_time))
+        # End Exclusive access to the db
+        con.commit()
+        con.close()
+        return return_time
 
     def create_table(cls):
         con = db.connect('Database/locking.db')
         with con:
             cur = con.cursor()
-            cur.execute("CREATE TABLE IF NOT EXISTS Locks(Id INT PRIMARY KEY, Path TEXT, Time INT)")
+            cur.execute("CREATE TABLE IF NOT EXISTS Locks(Id INT PRIMARY KEY, Path TEXT INDEX, Time INT)")
 
 
 def main():
