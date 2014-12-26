@@ -17,6 +17,7 @@ class DirectoryServer(TCPServer):
 
     def __init__(self, port_use=None):
         TCPServer.__init__(self, port_use, self.handler)
+        # TODO Create the DB tables if they don't exist
 
     def handler(self, message, con, addr):
         if re.match(self.GET_REGEX, message):
