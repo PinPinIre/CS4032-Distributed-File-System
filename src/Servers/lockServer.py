@@ -64,7 +64,7 @@ class LockServer(TCPServer):
         con = db.connect('Database/locking.db')
         with con:
             cur = con.cursor()
-            cur.execute("CREATE TABLE IF NOT EXISTS Locks(Id INT PRIMARY KEY, Path TEXT, Time INT)")
+            cur.execute("CREATE TABLE IF NOT EXISTS Locks(Id INTEGER PRIMARY KEY, Path TEXT, Time INT)")
             cur.execute("CREATE INDEX IF NOT EXISTS PATHS ON Locks(Path)")
 
 
