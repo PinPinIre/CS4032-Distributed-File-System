@@ -25,7 +25,7 @@ class TCPClient:
     REQUEST = "%s"
     LENGTH = 4096
     CLIENT_ROOT = os.getcwd()
-    BUCKET_NAME = "DistBucketClient"
+    BUCKET_NAME = "ClientFiles"
     BUCKET_LOCATION = os.path.join(CLIENT_ROOT, BUCKET_NAME)
 
     def __init__(self, port_use=None):
