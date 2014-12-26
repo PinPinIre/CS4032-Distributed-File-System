@@ -32,7 +32,7 @@ class LockServer(TCPServer):
         request = text.splitlines()
         full_path = request[1].split()[1]
 
-        lock_time = self.lock_file(full_path, 100)
+        lock_time = self.lock_file(full_path, 5)
 
         return_string = self.LOCK_RESPONSE % (full_path, lock_time)
         print return_string
@@ -53,6 +53,7 @@ class LockServer(TCPServer):
         count = cur.fetchone()[0]
         if count is 0:
             cur.execute("INSERT INTO Locks (Path, Time) VALUES (?, ?)", (path, end_time))
+            return_time = end_time
         # End Exclusive access to the db
         con.commit()
         con.close()
@@ -62,7 +63,8 @@ class LockServer(TCPServer):
         con = db.connect('Database/locking.db')
         with con:
             cur = con.cursor()
-            cur.execute("CREATE TABLE IF NOT EXISTS Locks(Id INT PRIMARY KEY, Path TEXT INDEX, Time INT)")
+            cur.execute("CREATE TABLE IF NOT EXISTS Locks(Id INT PRIMARY KEY, Path TEXT, Time INT)")
+            cur.execute("CREATE INDEX IF NOT EXISTS PATHS ON Locks(Path)")
 
 
 def main():
