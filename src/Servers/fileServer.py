@@ -12,8 +12,11 @@ from tcpServer import TCPServer
 
 
 class FileServer(TCPServer):
-    UPLOAD_REGEX = "UPLOAD: [0-9]*\nFILENAME: [a-zA-Z0-9_.]*\nDATA: .*\n\n"
-    DOWNLOAD_REGEX = "DOWNLOAD: [0-9]*\nFILENAME: [a-zA-Z0-9_.]*\n\n"
+    UPLOAD_REGEX = "UPLOAD: [a-zA-Z0-9_.]*\nDATA: .*\n\n"
+    DOWNLOAD_REGEX = "DOWNLOAD: [a-zA-Z0-9_.]*\n\n"
+    DOWNLOAD_RESPONSE = "DATA: %s\n\n"
+    UPLOAD_RESPONSE = "OK: 0\n\n"
+    # TODO Add some error responses
     SERVER_ROOT = os.getcwd()
     BUCKET_NAME = "DirectoryServerFiles"
     BUCKET_LOCATION = os.path.join(SERVER_ROOT, BUCKET_NAME)
@@ -34,28 +37,27 @@ class FileServer(TCPServer):
     def upload(self, con, addr, text):
         # Handler for file upload requests
         request = text.splitlines()
-        filename = request[1].split()[1]
-        data = request[2].split()[1]
+        filename = request[0].split()[1]
+        data = request[1].split()[1]
         data = base64.b64decode(data)
 
         path = os.path.join(self.BUCKET_LOCATION, filename)
         file_handle = open(path, "w+")
         file_handle.write(data)
 
-        return_string = self.HELO_RESPONSE % ("ffafssf", addr[0], addr[1])
+        return_string = self.UPLOAD_RESPONSE
         con.sendall(return_string)
         return
 
     def download(self, con, addr, text):
         # Handler for file download requests
         request = text.splitlines()
-        filename = request[1].split()[1]
+        filename = request[0].split()[1]
 
         path = os.path.join(self.BUCKET_LOCATION, filename)
-        file_handle = open(path, "r")
+        file_handle = open(path, "w+")
         data = file_handle.read()
-        return_string = base64.b64encode(data) + "\n\n"
-
+        return_string = self.DOWNLOAD_RESPONSE % (base64.b64encode(data))
         con.sendall(return_string)
         return
 

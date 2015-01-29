@@ -13,8 +13,10 @@ from tcpServer import TCPServer
 
 
 class LockServer(TCPServer):
-    LOCK_REGEX = "LOCK_FILE: (True|False)\nFILENAME: [a-zA-Z0-9_./]*\nTime: [0-9]*\n\n"
-    LOCK_RESPONSE = "LOCK_RESPONE: \nFILENAME: %s\nTIME: %d\n\n"
+    LOCK_REGEX = "LOCK_FILE: [a-zA-Z0-9_./]*\nTime: [0-9]*\n\n"
+    UNLOCK_REGEX = "UNLOCK_FILE: [a-zA-Z0-9_./]*\n\n"
+    LOCK_RESPONSE = "LOCK_RESPONSE: \nFILENAME: %s\nTIME: %d\n\n"
+    FAIL_RESPONSE = "ERROR: %d\nMESSAGE: %s\n\n"
 
     def __init__(self, port_use=None):
         TCPServer.__init__(self, port_use, self.handler)
@@ -23,6 +25,8 @@ class LockServer(TCPServer):
     def handler(self, message, con, addr):
         if re.match(self.LOCK_REGEX, message):
             self.get_lock(con, addr, message)
+        elif re.match(self.UNLOCK_REGEX, message):
+            self.get_unlock(con, addr, message)
         else:
             return False
         return True
@@ -30,10 +34,21 @@ class LockServer(TCPServer):
     def get_lock(self, con, addr, text):
         # Handler for file locking requests
         request = text.splitlines()
-        full_path = request[1].split()[1]
-        duration = int(request[2].split()[1])
-        print "Duration: " + str(duration)
+        full_path = request[0].split()[1]
+        duration = int(request[1].split()[1])
         lock_time = self.lock_file(full_path, duration)
+        if lock_time:
+            return_string = self.LOCK_RESPONSE % (full_path, lock_time)
+        else:
+            return_string = self.FAIL_RESPONSE % (0, str(duration))
+        con.sendall(return_string)
+        return
+
+    def get_unlock(self, con, addr, text):
+        # Handler for file locking requests
+        request = text.splitlines()
+        full_path = request[0].split()[1]
+        lock_time = self.unlock_file(full_path)
 
         return_string = self.LOCK_RESPONSE % (full_path, lock_time)
         print return_string
@@ -55,10 +70,29 @@ class LockServer(TCPServer):
         if count is 0:
             cur.execute("INSERT INTO Locks (Path, Time) VALUES (?, ?)", (path, end_time))
             return_time = end_time
+        else:
+            return_time = False
         # End Exclusive access to the db
         con.commit()
         con.close()
         return return_time
+
+    def unlock_file(self, path):
+        return_time = -1
+        con = db.connect('Database/locking.db')
+        # Exclusive r/w access to the db
+        con.isolation_level = 'EXCLUSIVE'
+        con.execute('BEGIN EXCLUSIVE')
+        current_time = int(time.time())
+        cur = con.cursor()
+        cur.execute("SELECT count(*) FROM Locks WHERE Path = ? AND Time > ?", (path, current_time))
+        count = cur.fetchone()[0]
+        if count is 0:
+            cur.execute("UPDATE Locks SET Time=? WHERE Path = ? AND Time > ?", (current_time, path, current_time))
+        # End Exclusive access to the db
+        con.commit()
+        con.close()
+        return current_time
 
     def create_table(cls):
         con = db.connect('Database/locking.db')
