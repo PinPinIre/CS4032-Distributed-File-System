@@ -16,6 +16,8 @@ from tcpServer import TCPServer
 class DirectoryServer(TCPServer):
     GET_REGEX = "GET_SERVER: \nFILENAME: [a-zA-Z0-9_./]*\n\n"
     GET_RESPONSE = "PRIMARY_SERVER: %s\nPORT: %s\nFILENAME: %s%s\n\n"
+    GET_SLAVES_REGEX = "GET_SLAVES: .*\nPORT: [0-9]*\n\n"
+    SLAVE_RESPONSE_HEADER = "SLAVES: %s\n\n"
     SLAVE_HEADER = "\nSLAVE_SERVER: %s\nPORT: %s"
     CREATE_DIR_REGEX = "CREATE_DIR: \nDIRECTORY: [a-zA-Z0-9_./]*\n\n"
     DELETE_DIR_REGEX = "DELETE_DIR: \nDIRECTORY: [a-zA-Z0-9_./]*\n\n"
@@ -29,6 +31,8 @@ class DirectoryServer(TCPServer):
     def handler(self, message, con, addr):
         if re.match(self.GET_REGEX, message):
             self.get_server(con, addr, message)
+        elif re.match(self.GET_SLAVES_REGEX, message):
+            self.get_slaves(con, addr, message)
         else:
             return False
         return True
@@ -49,10 +53,19 @@ class DirectoryServer(TCPServer):
             self.create_dir(path, server_id)
             host, port = self.find_host(path)
 
-        # TODO Add slave strings to response
-        slave_string = ""
+        slave_string = self.get_slave_string(host, port)
         return_string = self.GET_RESPONSE % (host, port, filename, slave_string)
         print return_string
+        con.sendall(return_string)
+        return
+
+    def get_slaves(self, con, addr, text):
+        # Handler for file upload requests
+        request = text.splitlines()
+        host = request[0].split()[1]
+        port = request[1].split()[1]
+        slave_string = self.get_slave_string(host, port)
+        return_string = self.SLAVE_RESPONSE_HEADER % slave_string
         con.sendall(return_string)
         return
 
@@ -63,8 +76,6 @@ class DirectoryServer(TCPServer):
             cur = con.cursor()
             cur.execute("SELECT Server FROM Directories WHERE Path = ?", (path,))
             server = cur.fetchone()
-            print "SERVER:"
-            print server
             if server:
                 server_id = server[0]
                 cur = con.cursor()
@@ -82,6 +93,19 @@ class DirectoryServer(TCPServer):
             if servers:
                 return_host = random.choice(servers)[0]
         return return_host
+
+    def get_slave_string(self, host, port):
+        return_string = ""
+        con = db.connect(self.DATABASE)
+        with con:
+            cur = con.cursor()
+            cur.execute("SELECT Server, Port FROM Servers WHERE NOT (Server=? AND Port=?)", (host, port,))
+            servers = cur.fetchall()
+        for (host, port) in servers:
+            header = self.SLAVE_HEADER % (host, port)
+            return_string = return_string + header
+        return return_string
+
 
     def create_dir(self, path, host):
         con = db.connect(self.DATABASE)
