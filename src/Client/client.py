@@ -28,7 +28,7 @@ class TCPClient:
     UPLOAD_HEADER = "UPLOAD: %s\nDATA: %s\n\n"
     DOWNLOAD_HEADER = "DOWNLOAD: %s\n\n"
     DIRECTORY_HEADER = "GET_SERVER: \nFILENAME: %s\n\n"
-    SERVER_RESPONSE = "PRIMARY_SERVER: .*\nPORT: .*\nFILENAME: .*\n\n"
+    SERVER_RESPONSE = "PRIMARY_SERVER: .*\nPORT: .*\nFILENAME: .*"
     LOCK_HEADER = "LOCK_FILE: %s\nTime: %d\n\n"
     LOCK_RESPONSE = "LOCK_RESPONSE: \nFILENAME: .*\nTIME: .*\n\n"
     FAIL_RESPONSE = "ERROR: .*\nMESSAGE: .*\n\n"
