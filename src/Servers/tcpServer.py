@@ -8,9 +8,6 @@ import Queue
 import os
 import re
 import sys
-import logging
-
-logging.basicConfig(filename="receivedMessage.log", level=logging.DEBUG)
 
 
 class TCPServer(object):
@@ -25,6 +22,8 @@ class TCPServer(object):
     def __init__(self, port_use=None, handler=None):
         if not port_use:
             port_use = self.PORT
+        else:
+            self.PORT = port_use
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.bind((self.HOST, port_use))
         self.handler = handler if handler else self.default_handler
@@ -74,6 +73,25 @@ class TCPServer(object):
         print "Default"
         return
 
+    def send_request(self, data, server, port):
+        return_data = ""
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        sock.connect((server, port))
+        sock.sendall(data)
+
+        # Loop until all data received
+        while "\n\n" not in return_data:
+            data = sock.recv(self.LENGTH)
+            if len(data) == 0:
+                break
+            return_data += data
+
+        # Close and dereference the socket
+        sock.close()
+        sock = None
+        return return_data
+
 
 class ThreadHandler(threading.Thread):
     def __init__(self, thread_queue, buffer_length, server):
@@ -101,7 +119,6 @@ class ThreadHandler(threading.Thread):
                     break
             # If valid http request with message body
             if len(message) > 0:
-                logging.debug("Received:\n" + message + "\n")
                 if message == "KILL_SERVICE\n":
                     print "Killing service"
                     self.server.kill_serv(con)
