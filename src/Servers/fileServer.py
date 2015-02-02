@@ -1,4 +1,4 @@
-# Lab2Server.py
+# FileServer.py
 # Project CS4032
 # Cathal Geoghegan #11347076
 
@@ -19,7 +19,6 @@ class FileServer(TCPServer):
     DOWNLOAD_RESPONSE = "DATA: %s\n\n"
     GET_SLAVES_HEADER = "GET_SLAVES: %s\nPORT: %s\n\n"
     UPLOAD_RESPONSE = "OK: 0\n\n"
-    # TODO Add some error responses
     SERVER_ROOT = os.getcwd()
     BUCKET_NAME = "DirectoryServerFiles"
     BUCKET_LOCATION = os.path.join(SERVER_ROOT, BUCKET_NAME)
@@ -44,7 +43,6 @@ class FileServer(TCPServer):
 
     def upload(self, con, addr, text):
         # Handler for file upload requests
-        print "Uploading"
         filename, data = self.execute_write(text)
         return_string = self.UPLOAD_RESPONSE
         con.sendall(return_string)
@@ -65,25 +63,25 @@ class FileServer(TCPServer):
 
     def update(self, con, addr, text):
         # Handler for file update requests
-        print "Updating"
         self.execute_write(text)
         return_string = self.UPLOAD_RESPONSE
         con.sendall(return_string)
         return
 
     def execute_write(self, text):
+        # Function that process an update/upload request and writes data to the server
         request = text.splitlines()
         filename = request[0].split()[1]
         data = request[1].split()[1]
         data = base64.b64decode(data)
 
         path = os.path.join(self.BUCKET_LOCATION, filename)
-        print path
         file_handle = open(path, "w+")
         file_handle.write(data)
         return filename, data
 
     def update_slaves(self, filename, data):
+        # Function that gets all the slaves and updates file on them
         slaves = self.get_slaves()
         update = self.UPDATE_HEADER % (filename, base64.b64encode(data))
         for (host, port) in slaves:
@@ -91,6 +89,7 @@ class FileServer(TCPServer):
         return
 
     def get_slaves(self):
+        # Function to get the list of slave file servers
         return_list = []
         request_data = self.GET_SLAVES_HEADER % (self.HOST, self.PORT,)
         lines = self.send_request(request_data, self.DIR_HOST, self.DIR_PORT).splitlines()

@@ -1,4 +1,4 @@
-# Lab2Server.py
+# LockServer.py
 # Project CS4032
 # Cathal Geoghegan #11347076
 
@@ -17,6 +17,7 @@ class LockServer(TCPServer):
     UNLOCK_REGEX = "UNLOCK_FILE: [a-zA-Z0-9_./]*\n\n"
     LOCK_RESPONSE = "LOCK_RESPONSE: \nFILENAME: %s\nTIME: %d\n\n"
     FAIL_RESPONSE = "ERROR: %d\nMESSAGE: %s\n\n"
+    DATABASE = 'Database/locking.db'
 
     def __init__(self, port_use=None):
         TCPServer.__init__(self, port_use, self.handler)
@@ -45,19 +46,19 @@ class LockServer(TCPServer):
         return
 
     def get_unlock(self, con, addr, text):
-        # Handler for file locking requests
+        # Handler for file unlocking requests
         request = text.splitlines()
         full_path = request[0].split()[1]
         lock_time = self.unlock_file(full_path)
 
         return_string = self.LOCK_RESPONSE % (full_path, lock_time)
-        print return_string
         con.sendall(return_string)
         return
 
     def lock_file(self, path, lock_period):
+        # Function that attempts to lock a file
         return_time = -1
-        con = db.connect('Database/locking.db')
+        con = db.connect(self.DATABASE)
         # Exclusive r/w access to the db
         con.isolation_level = 'EXCLUSIVE'
         con.execute('BEGIN EXCLUSIVE')
@@ -78,8 +79,9 @@ class LockServer(TCPServer):
         return return_time
 
     def unlock_file(self, path):
+        # Function that attempts to unlock a file
         return_time = -1
-        con = db.connect('Database/locking.db')
+        con = db.connect(self.DATABASE)
         # Exclusive r/w access to the db
         con.isolation_level = 'EXCLUSIVE'
         con.execute('BEGIN EXCLUSIVE')
@@ -95,7 +97,8 @@ class LockServer(TCPServer):
         return current_time
 
     def create_table(cls):
-        con = db.connect('Database/locking.db')
+        # Function that creates the tables for the locking servers database
+        con = db.connect(cls.DATABASE)
         with con:
             cur = con.cursor()
             cur.execute("CREATE TABLE IF NOT EXISTS Locks(Id INTEGER PRIMARY KEY, Path TEXT, Time INT)")

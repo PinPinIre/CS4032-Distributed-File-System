@@ -1,4 +1,4 @@
-# Lab2Server.py
+# DirectoryServer.py
 # Project CS4032
 # Cathal Geoghegan #11347076
 
@@ -22,7 +22,6 @@ class DirectoryServer(TCPServer):
     CREATE_DIR_REGEX = "CREATE_DIR: \nDIRECTORY: [a-zA-Z0-9_./]*\n\n"
     DELETE_DIR_REGEX = "DELETE_DIR: \nDIRECTORY: [a-zA-Z0-9_./]*\n\n"
     DATABASE = "Database/directories.db"
-    # TODO Add message to delete and create directories and handle the cleanup involved
 
     def __init__(self, port_use=None):
         TCPServer.__init__(self, port_use, self.handler)
@@ -48,11 +47,12 @@ class DirectoryServer(TCPServer):
         host, port = self.find_host(path)
 
         if not host:
-            print "The directory doesn't exist"
+            # The Directory doesn't exist and must be added to the db
             server_id = self.pick_random_host()
             self.create_dir(path, server_id)
             host, port = self.find_host(path)
 
+        # Get the list of slaves that have a copy of the file
         slave_string = self.get_slave_string(host, port)
         return_string = self.GET_RESPONSE % (host, port, filename, slave_string)
         print return_string
@@ -60,7 +60,7 @@ class DirectoryServer(TCPServer):
         return
 
     def get_slaves(self, con, addr, text):
-        # Handler for file upload requests
+        # Function that gets the list of slave servers
         request = text.splitlines()
         host = request[0].split()[1]
         port = request[1].split()[1]
@@ -70,6 +70,7 @@ class DirectoryServer(TCPServer):
         return
 
     def find_host(self, path):
+        # Function that takes a path and returns the server that contains that directories files
         return_host = (False, False)
         con = db.connect(self.DATABASE)
         with con:
@@ -84,6 +85,7 @@ class DirectoryServer(TCPServer):
         return return_host
 
     def pick_random_host(self):
+        # Function to pick a random host from the database
         return_host = False
         con = db.connect(self.DATABASE)
         with con:
@@ -95,6 +97,7 @@ class DirectoryServer(TCPServer):
         return return_host
 
     def get_slave_string(self, host, port):
+        # Function that generates a slave string
         return_string = ""
         con = db.connect(self.DATABASE)
         with con:
@@ -106,8 +109,8 @@ class DirectoryServer(TCPServer):
             return_string = return_string + header
         return return_string
 
-
     def create_dir(self, path, host):
+        # Function to create a directory in the DB
         con = db.connect(self.DATABASE)
         with con:
             cur = con.cursor()
@@ -116,6 +119,7 @@ class DirectoryServer(TCPServer):
         con.close()
 
     def add_server(self, host, port):
+        # Function to add a server to the DB
         con = db.connect(self.DATABASE)
         with con:
             cur = con.cursor()
@@ -124,6 +128,7 @@ class DirectoryServer(TCPServer):
         con.close()
 
     def remove_dir(self, path):
+        # Function to remove a directory from the DB
         con = db.connect(self.DATABASE)
         with con:
             cur = con.cursor()
@@ -132,6 +137,7 @@ class DirectoryServer(TCPServer):
         con.close()
 
     def remove_server(self, server):
+        # Function to remove a server from the DB
         con = db.connect(self.DATABASE)
         with con:
             cur = con.cursor()
@@ -140,6 +146,7 @@ class DirectoryServer(TCPServer):
         con.close()
 
     def create_tables(self):
+        # Function to add the tables to the database
         con = db.connect(self.DATABASE)
         with con:
             cur = con.cursor()
