@@ -241,7 +241,7 @@ def main():
             con.open(file_name)
             con.close(file_name)
         else:
-            data = con.raw_request(user_input)
+            data = con.__raw_request(user_input)
             print data
 
 
