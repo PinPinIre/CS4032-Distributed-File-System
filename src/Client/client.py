@@ -1,4 +1,4 @@
-# Lab2Client.py
+# client.py
 # Project CS4032
 # Cathal Geoghegan #11347076
 
@@ -11,6 +11,7 @@ import time
 import Queue
 import base64
 
+# Regex used for the testing of the client proxy
 UPLOAD_REGEX = "upload [a-zA-Z0-9_]*."
 DOWNLOAD_REGEX = "download [a-zA-Z0-9_]*."
 DIRECTORY_REGEX = "dir [a-zA-Z0-9_/.]*"
@@ -49,14 +50,17 @@ class TCPClient:
         self.threadQueue = Queue.Queue()
 
     def open(self, filename):
+        """Function opens a file by downloading from a remote server"""
         file_downloaded = False
         if filename not in self.open_files.keys():
+            # Get the info of the server hosting the file
             request = self.__get_directory(filename)
             if re.match(self.SERVER_RESPONSE, request):
                 params = request.splitlines()
                 server = params[0].split()[1]
                 port = int(params[1].split()[1])
                 open_file = params[2].split()[1]
+                # Get lock on file before downloading
                 self.__lock_file(filename, 10)
                 file_downloaded = self.__download_file(server, port, open_file)
                 if file_downloaded:
@@ -64,21 +68,28 @@ class TCPClient:
         return file_downloaded
 
     def close(self, filename):
+        """Function closes a file by uploading it and removing the local copy"""
         file_uploaded = False
         if filename in self.open_files.keys():
             request = self.__get_directory(filename)
             if re.match(self.SERVER_RESPONSE, request):
+                # Remove lock from file
                 self.__unlock_file(filename)
                 params = request.splitlines()
                 server = params[0].split()[1]
-                port = int(params[1].split()[1])
                 open_file = params[2].split()[1]
+                # Upload the file and then delete from local host
                 file_uploaded = self.__upload_file(server, open_file)
                 if file_uploaded:
+                    path = os.path.join(self.CLIENT_ROOT, self.BUCKET_NAME)
+                    path = os.path.join(path, self.open_files[filename])
+                    if os.path.exists(path):
+                        os.remove(path)
                     del self.open_files[filename]
         return file_uploaded
 
     def read(self, filename):
+        """Function that reads from an open file"""
         if filename in self.open_files.keys():
             local_name = self.open_files[filename]
             path = os.path.join(self.BUCKET_LOCATION, local_name)
@@ -88,6 +99,7 @@ class TCPClient:
         return None
 
     def write(self, filename, data):
+        """Function that writes to an open file"""
         success = False
         if filename in self.open_files.keys():
             local_name = self.open_files[filename]
@@ -98,6 +110,7 @@ class TCPClient:
         return success
 
     def __send_request(self, data, server, port):
+        """Function that sends requests to remote server"""
         return_data = ""
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -117,7 +130,7 @@ class TCPClient:
         return return_data
 
     def __raw_request(self, string):
-        """Capitilise a string by sending a request to a server"""
+        """Send a raw request to remote server"""
         return_data = ""
         # Do nothing if the string is empty or socket doesn't exist
         if len(string) > 0:
@@ -130,6 +143,7 @@ class TCPClient:
         path = os.path.join(self.BUCKET_LOCATION, filename)
 
         file_handle = open(path, "rb")
+        # Base64 encode the file so it can be sent in a message
         data = file_handle.read()
         data = base64.b64encode(data)
 
@@ -139,7 +153,7 @@ class TCPClient:
     def __download_file(self, server, port, filename):
         """Send a request to the server to download a file"""
         path = os.path.join(self.BUCKET_LOCATION, filename)
-
+        # Download message containing file data and then base64 decode the data
         request = self.DOWNLOAD_HEADER % (filename)
         request_data = self.__send_request(request, server, port).splitlines()[0]
         data = request_data.split()[0]
@@ -150,7 +164,7 @@ class TCPClient:
         return True
 
     def __get_directory(self, filename):
-        """Send a request to the server to create a dir"""
+        """Send a request to the server to find the location of a directory"""
         request = self.DIRECTORY_HEADER % filename
 
         return self.__send_request(request, self.DIR_HOST, self.DIR_PORT)
@@ -160,6 +174,7 @@ class TCPClient:
         request = self.LOCK_HEADER % (filename, lock_time)
         request_data = self.__send_request(request, self.LOCK_HOST, self.LOCK_PORT)
         if re.match(self.FAIL_RESPONSE, request_data):
+            # If failed to lock the file, wait a time and try again
             request_data = request_data.splitlines()
             wait_time = float(request_data[1].split()[1])
             time.sleep(wait_time)
@@ -203,6 +218,7 @@ class ThreadHandler(threading.Thread):
 
 
 def main():
+    # Main used to test the client proxy. The test.png file was used as a source and must be located in the ClientFiles directory
     path = os.path.join(TCPClient.BUCKET_LOCATION, "test.png")
     file_handle = open(path, "rb")
     data = file_handle.read()
@@ -241,7 +257,7 @@ def main():
             con.open(file_name)
             con.close(file_name)
         else:
-            data = con.__raw_request(user_input)
+            data = con._TCPClient__raw_request(user_input)
             print data
 
 
