@@ -11,5 +11,5 @@ python src/Servers/lockServer.py 8007 &
 python src/Servers/fileServer.py 8006 &
 python src/Servers/fileServer.py 8009 &
 python src/Servers/fileServer.py 8010 &
-sleep 5
+sleep 5 # Ensure that the servers start up before adding data to the db, not nice but works
 python src/setup.py

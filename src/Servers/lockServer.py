@@ -1,6 +1,6 @@
 # LockServer.py
 # Project CS4032
-# Cathal Geoghegan #11347076
+# Cathal Geoghegan
 
 import socket
 import re
