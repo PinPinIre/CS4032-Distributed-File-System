@@ -11,5 +11,5 @@ python src/Servers/lockServer.py 8007 &
 python src/Servers/fileServer.py 8006 &
 python src/Servers/fileServer.py 8009 &
 python src/Servers/fileServer.py 8010 &
-
+sleep 5
 python src/setup.py
