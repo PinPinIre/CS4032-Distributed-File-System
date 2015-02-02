@@ -161,7 +161,7 @@ class TCPClient:
         request_data = self.__send_request(request, self.LOCK_HOST, self.LOCK_PORT)
         if re.match(self.FAIL_RESPONSE, request_data):
             request_data = request_data.splitlines()
-            wait_time = request_data.split()[1]
+            wait_time = float(request_data[1].split()[1])
             time.sleep(wait_time)
             self.__lock_file(filename, lock_time)
         return True

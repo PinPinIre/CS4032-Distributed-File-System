@@ -109,26 +109,25 @@ class ThreadHandler(threading.Thread):
             self.queue.task_done()
 
     def handler(self, (con, addr)):
-        while con:
-            message = ""
-            # Loop and receive data
-            while "\n\n" not in message:
-                data = con.recv(self.buffer_length)
-                message += data
-                if len(data) < self.buffer_length:
-                    break
-            # If valid http request with message body
-            if len(message) > 0:
-                if message == "KILL_SERVICE\n":
-                    print "Killing service"
-                    self.server.kill_serv(con)
-                elif re.match(self.server.HELO_REGEX, message):
-                    self.server.helo(con, addr, message)
-                elif self.messageHandler(message, con, addr):
-                    None
-                else:
-                    print message
-                    self.server.default(con, addr, message)
+        message = ""
+        # Loop and receive data
+        while "\n\n" not in message:
+            data = con.recv(self.buffer_length)
+            message += data
+            if len(data) < self.buffer_length:
+                break
+        # If valid http request with message body
+        if len(message) > 0:
+            if message == "KILL_SERVICE\n":
+                print "Killing service"
+                self.server.kill_serv(con)
+            elif re.match(self.server.HELO_REGEX, message):
+                self.server.helo(con, addr, message)
+            elif self.messageHandler(message, con, addr):
+                None
+            else:
+                print message
+                self.server.default(con, addr, message)
         return
 
 
